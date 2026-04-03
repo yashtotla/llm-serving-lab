@@ -1,0 +1,23 @@
+{
+  "experiment": "baseline",
+  "device": "cuda",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "timestamp": "2026-04-03T22:28:38.115467",
+  "results": {
+    "n_requests": 50,
+    "failed_results": 0,
+    "ttft_ms_percentiles": {
+      "p50": 7707.61513710022,
+      "p90": 7738.135838508606,
+      "p95": 7738.607215881348,
+      "p99": 7751.172416210175
+    },
+    "tps_percentiles": {
+      "p50": 183.71915249082355,
+      "p90": 187.3414761203055,
+      "p95": 190.33222797920553,
+      "p99": 194.62302673652997
+    },
+    "throughput_total_tps": 1505.909649815777
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "experiment": "baseline",
+  "device": "mps",
+  "model": "mlx-community/Qwen2.5-1.5B-Instruct-4bit",
+  "timestamp": "2026-04-03T22:42:47.083833",
+  "results": {
+    "n_requests": 50,
+    "failed_results": 0,
+    "ttft_ms_percentiles": {
+      "p50": 2923.939347267151,
+      "p90": 16129.871201515198,
+      "p95": 16131.194746494293,
+      "p99": 18721.733071804047
+    },
+    "tps_percentiles": {
+      "p50": 34.68832821844616,
+      "p90": 40.29803236547886,
+      "p95": 40.453185944704174,
+      "p99": 42.124126503859856
+    },
+    "throughput_total_tps": 704.3571130148206
+  }
+}
