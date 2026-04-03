@@ -952,6 +952,7 @@ dependencies = [
     { name = "jupyter" },
     { name = "matplotlib" },
     { name = "mlx-lm" },
+    { name = "numpy" },
     { name = "pandas" },
     { name = "uvicorn" },
 ]
@@ -963,6 +964,7 @@ requires-dist = [
     { name = "jupyter", specifier = "==1.1.1" },
     { name = "matplotlib", specifier = "==3.10.8" },
     { name = "mlx-lm", specifier = ">=0.31.1" },
+    { name = "numpy", specifier = ">=2.4.4" },
     { name = "pandas", specifier = "==3.0.2" },
     { name = "uvicorn", specifier = "==0.42.0" },
 ]
