@@ -21,11 +21,6 @@ Thumbs.db
 
 # Environment variables
 .env
-.env.*
-
-# Results (regenerated from benchmark runs)
-results/*
-!results/.gitkeep
 
 # Jupyter
 .ipynb_checkpoints/
