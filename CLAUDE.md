@@ -28,7 +28,7 @@ technique in this project is a direct attack on that bottleneck.
 ## Tech stack
 
 - **Package manager**: `uv` (use `uv add` not `pip install`, `uv run` to execute scripts)
-- **Python**: 3.11+
+- **Python**: 3.14+
 - **GPU environment (RunPod)**: RTX 4090 (24 GB VRAM), Ada Lovelace architecture
   - Supports: BF16, FP16, INT8 (W8A8), INT4 (GPTQ/AWQ)
   - Does NOT support FP8 natively (that requires Hopper / H100)
