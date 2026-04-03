@@ -8,6 +8,8 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 
+from config import get_base_url
+
 
 PROMPTS = [
     # General knowledge
@@ -72,7 +74,6 @@ PROMPTS = [
     "Explain the concept of entropy in both thermodynamics and information theory.",
 ]
 
-BASE_URL = "http://localhost:8000"
 
 def _parse_sse_data_line(line: str) -> str | None:
     """Return the payload after 'data:' for an SSE line, or None if not a data line."""
@@ -80,7 +81,7 @@ def _parse_sse_data_line(line: str) -> str | None:
         return None
     return line[5:].lstrip()
 
-async def single_request(client: httpx.AsyncClient, prompt: str, *, model: str) -> dict:
+async def single_request(client: httpx.AsyncClient, prompt: str, *, model: str, base_url: str) -> dict:
     """Stream chat completions; TTFT is ms until first chunk with non-empty delta content."""
     payload = {
         "model": model,
@@ -95,7 +96,7 @@ async def single_request(client: httpx.AsyncClient, prompt: str, *, model: str) 
 
     async with client.stream(
         "POST",
-        f"{BASE_URL}/v1/chat/completions",
+        f"{base_url}/v1/chat/completions",
         json=payload,
     ) as response:
         response.raise_for_status()
@@ -141,13 +142,13 @@ async def single_request(client: httpx.AsyncClient, prompt: str, *, model: str) 
     return {"ttft_ms": ttft_ms, "tps": tps, "total_tokens": total_tokens}
 
 
-async def run_benchmark(client: httpx.AsyncClient, prompts: list[str], *, model: str) -> dict:
+async def run_benchmark(client: httpx.AsyncClient, prompts: list[str], *, model: str, base_url: str) -> dict:
     """Run the benchmark and return the results."""
     n_requests = len(prompts)
 
     start = time.time()
     results = await asyncio.gather(
-        *[single_request(client, prompt, model=model) for prompt in prompts],
+        *[single_request(client, prompt, model=model, base_url=base_url) for prompt in prompts],
         return_exceptions=True,
     )
     end = time.time()
@@ -186,9 +187,10 @@ async def main(
     n_prompts: int | None = None,
 ):
     """Run the baseline benchmark."""
+    base_url = get_base_url(device)
     prompts = PROMPTS[:n_prompts] if n_prompts else PROMPTS
     async with httpx.AsyncClient(timeout=120.0) as client:
-        results = await run_benchmark(client, prompts, model=model)
+        results = await run_benchmark(client, prompts, model=model, base_url=base_url)
 
     output = {
         "experiment": "baseline",
