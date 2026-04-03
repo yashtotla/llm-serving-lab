@@ -1,12 +1,13 @@
 """ Baseline benchmark. """
 
-import httpx
-import time
-import json
 import asyncio
+import httpx
+import json
+import time
 import numpy as np
 from datetime import datetime
 from pathlib import Path
+
 
 PROMPTS = [
     # General knowledge
@@ -71,17 +72,18 @@ PROMPTS = [
     "Explain the concept of entropy in both thermodynamics and information theory.",
 ]
 
+BASE_URL = "http://localhost:8000"
+
 def _parse_sse_data_line(line: str) -> str | None:
     """Return the payload after 'data:' for an SSE line, or None if not a data line."""
     if not line.startswith("data:"):
         return None
     return line[5:].lstrip()
 
-
-async def single_request(client: httpx.AsyncClient, prompt: str) -> dict:
+async def single_request(client: httpx.AsyncClient, prompt: str, *, model: str) -> dict:
     """Stream chat completions; TTFT is ms until first chunk with non-empty delta content."""
     payload = {
-        "model": "meta-llama/Llama-3.2-1B-Instruct",
+        "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "stream": True,
         "stream_options": {"include_usage": True},
@@ -93,7 +95,7 @@ async def single_request(client: httpx.AsyncClient, prompt: str) -> dict:
 
     async with client.stream(
         "POST",
-        "http://localhost:8000/v1/chat/completions",
+        f"{BASE_URL}/v1/chat/completions",
         json=payload,
     ) as response:
         response.raise_for_status()
@@ -139,13 +141,13 @@ async def single_request(client: httpx.AsyncClient, prompt: str) -> dict:
     return {"ttft_ms": ttft_ms, "tps": tps, "total_tokens": total_tokens}
 
 
-async def run_benchmark(client: httpx.AsyncClient, prompts: list[str]) -> dict:
-    """ Run the benchmark and return the results. """
+async def run_benchmark(client: httpx.AsyncClient, prompts: list[str], *, model: str) -> dict:
+    """Run the benchmark and return the results."""
     n_requests = len(prompts)
 
     start = time.time()
     results = await asyncio.gather(
-        *[single_request(client, prompt) for prompt in prompts],
+        *[single_request(client, prompt, model=model) for prompt in prompts],
         return_exceptions=True,
     )
     end = time.time()
@@ -177,24 +179,29 @@ async def run_benchmark(client: httpx.AsyncClient, prompts: list[str]) -> dict:
     }
 
 
-async def main():
-    prompts = PROMPTS
+async def main(
+    *,
+    model: str,
+    device: str,
+    n_prompts: int | None = None,
+):
+    """Run the baseline benchmark."""
+    prompts = PROMPTS[:n_prompts] if n_prompts else PROMPTS
     async with httpx.AsyncClient(timeout=120.0) as client:
-        results = await run_benchmark(client, prompts)
+        results = await run_benchmark(client, prompts, model=model)
 
     output = {
         "experiment": "baseline",
-        "environment": "runpod_4090",
-        "model": "meta-llama/Llama-3.2-1B-Instruct",
+        "device": device,
+        "model": model,
         "timestamp": datetime.utcnow().isoformat(),
         "results": results,
     }
 
     Path("results").mkdir(exist_ok=True)
-    with open("results/baseline.json", "w") as f:
+    outfile = f"results/baseline_{device}.json"
+    with open(outfile, "w") as f:
         json.dump(output, f, indent=2)
 
     print(json.dumps(output, indent=2))
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    print(f"\nSaved to {outfile}")
