@@ -1,6 +1,9 @@
 """ Configuration for the project. """
 
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 MODEL_REGISTRY = {
     # Same model, both environments — primary comparison pair
