@@ -30,7 +30,7 @@ async def measure_perplexity(
     max_concurrency: int,
 ) -> dict:
     """Measure the perplexity of a model on a list of passages."""
-    n_passages = len(passages)
+    n_prompts = len(passages)
     sem = asyncio.Semaphore(max_concurrency)
     additional_payload = {
         "logprobs": True,
@@ -57,7 +57,7 @@ async def measure_perplexity(
 
     if not success_results:
         return {
-            "n_passages": n_passages,
+            "n_prompts": n_prompts,
             "failed_results": len(failed_results),
             "perplexity": None,
         }
@@ -78,7 +78,7 @@ async def measure_perplexity(
     throughput_total_tps = total_tokens / (end - start)
 
     return {
-        "n_passages": n_passages,
+        "n_prompts": n_prompts,
         "failed_results": len(failed_results),
         "perplexity": perplexity,
         "ttft_ms": {
@@ -97,18 +97,18 @@ async def measure_perplexity(
     }
 
 
-async def main(model: str, device: str, precision: str, n_passages: int = 50):
+async def main(model: str, device: str, precision: str, n_prompts: int = 50):
     """Run the quantization benchmark.
 
     Args:
         model: Full model name (e.g. meta-llama/Llama-3.2-1B-Instruct).
         device: Target device (cuda or mps).
         precision: Precision label for the output file (bf16, int8, int4).
-        n_passages: Number of WikiText passages to evaluate.
+        n_prompts: Number of WikiText passages to evaluate.
     """
     base_url = get_base_url(device)
     max_concurrency = get_max_concurrency(device)
-    passages = get_wikitext_passages(n_passages)
+    passages = get_wikitext_passages(n_prompts)
 
     async with httpx.AsyncClient(timeout=120.0) as client:
         results = await measure_perplexity(
@@ -121,7 +121,7 @@ async def main(model: str, device: str, precision: str, n_passages: int = 50):
         "device": device,
         "model": model,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "config": {"precision": precision, "n_passages": n_passages},
+        "config": {"precision": precision, "n_prompts": n_prompts},
         "results": results,
     }
 
