@@ -36,6 +36,12 @@ def parse_args():
         default=None,
         help="Limit number of prompts to send (useful for quick smoke tests)",
     )
+    parser.add_argument(
+        "--precision",
+        default="bf16",
+        choices=["bf16", "int8", "int4"],
+        help="Precision label for quantization benchmark (bf16, int8, int4)",
+    )
     return parser.parse_args()
 
 
@@ -51,8 +57,9 @@ if __name__ == "__main__":
     print(f"Device:  {device}")
 
     module = importlib.import_module(args.script)
-    asyncio.run(module.main(
-        model=model_name,
-        device=device,
-        n_prompts=args.n_prompts,
-    ))
+
+    kwargs: dict = {"model": model_name, "device": device, "n_prompts": args.n_prompts}
+    if args.precision and args.script == "benchmarks.quantization":
+        kwargs["precision"] = args.precision
+
+    asyncio.run(module.main(**kwargs))
