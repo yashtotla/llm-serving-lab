@@ -10,7 +10,7 @@ import argparse
 import asyncio
 import importlib
 
-from config import resolve_model
+from utils.config import resolve_model
 
 def parse_args():
     parser = argparse.ArgumentParser(description="LLM Serving Lab benchmark runner")

@@ -1,0 +1,30 @@
+{
+  "experiment": "prefix_cache",
+  "device": "mps",
+  "model": "mlx-community/Qwen2.5-1.5B-Instruct-4bit",
+  "timestamp": "2026-04-07T20:28:15.028592+00:00",
+  "results": {
+    "n_requests": 50,
+    "cache_miss": {
+      "ttft_ms": 753.0078887939453,
+      "tps": 102.81671334189994,
+      "total_tokens": 512
+    },
+    "cache_hit": {
+      "failed_results": 0,
+      "ttft_ms_percentiles": {
+        "p50": 519.5891857147217,
+        "p90": 674.7574329376221,
+        "p95": 690.8855915069579,
+        "p99": 806.9936275482172
+      },
+      "tps_percentiles": {
+        "p50": 44.84131645001238,
+        "p90": 47.30065189405033,
+        "p95": 48.49029706307163,
+        "p99": 65.37792141973814
+      },
+      "throughput_total_tps": 167.87026191404297
+    }
+  }
+}

@@ -8,7 +8,7 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 
-from config import get_base_url, get_prompts
+from utils.config import get_base_url, get_prompts
 from utils.single_request import single_request
 
 

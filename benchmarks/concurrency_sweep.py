@@ -15,23 +15,10 @@ import numpy as np
 from datetime import datetime, timezone
 from pathlib import Path
 
-from config import get_base_url, get_prompts
-from utils.single_request import single_request
+from utils.config import get_base_url, get_prompts
+from utils.throttled_request import throttled_request
 
 CONCURRENCY_LEVELS = [1, 2, 4, 8, 16, 32]
-
-
-async def _throttled_request(
-    sem: asyncio.Semaphore,
-    client: httpx.AsyncClient,
-    prompt: str,
-    *,
-    model: str,
-    base_url: str,
-) -> dict:
-    """Run a single request, acquiring the semaphore first."""
-    async with sem:
-        return await single_request(client, prompt, model=model, base_url=base_url)
 
 
 async def run_at_concurrency(
@@ -48,7 +35,7 @@ async def run_at_concurrency(
     start = time.time()
     results = await asyncio.gather(
         *[
-            _throttled_request(sem, client, prompt, model=model, base_url=base_url)
+            throttled_request(sem, client, prompt, model=model, base_url=base_url)
             for prompt in prompts
         ],
         return_exceptions=True,
