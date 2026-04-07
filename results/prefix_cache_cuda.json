@@ -1,0 +1,30 @@
+{
+  "experiment": "prefix_cache",
+  "device": "cuda",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "timestamp": "2026-04-07T21:07:55.121063+00:00",
+  "results": {
+    "n_requests": 50,
+    "cache_miss": {
+      "ttft_ms": 2690.4070377349854,
+      "tps": 223.38115910468034,
+      "total_tokens": 652
+    },
+    "cache_hit": {
+      "failed_results": 0,
+      "ttft_ms_percentiles": {
+        "p50": 1318.0549144744873,
+        "p90": 8996.74129486084,
+        "p95": 9006.501579284668,
+        "p99": 9010.408182144165
+      },
+      "tps_percentiles": {
+        "p50": 190.16806389842128,
+        "p90": 192.91967920731466,
+        "p95": 193.98580762652458,
+        "p99": 207.70307481801666
+      },
+      "throughput_total_tps": 1088.012031710636
+    }
+  }
+}
