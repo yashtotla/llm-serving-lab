@@ -5,14 +5,16 @@ import httpx
 import json
 import time
 import numpy as np
-from datetime import datetime
-from config import get_base_url, get_prompts, get_system_prompt
+from datetime import datetime, timezone
+from utils.config import get_base_url, get_prompts, get_system_prompt, get_max_concurrency
 from utils.single_request import single_request
+from utils.throttled_request import throttled_request
 from pathlib import Path
 
-async def run_benchmark(client: httpx.AsyncClient, prompts: list[str], *, model: str, base_url: str, system_prompt: str) -> dict:
+async def run_benchmark(client: httpx.AsyncClient, prompts: list[str], *, model: str, base_url: str, system_prompt: str, max_concurrency: int) -> dict:
     """Run the benchmark and return the results."""
     n_requests = len(prompts)
+    sem = asyncio.Semaphore(max_concurrency)
 
     miss_result = await single_request(client, prompts[0], model=model, base_url=base_url, system_prompt=system_prompt)
     if isinstance(miss_result, Exception):
@@ -20,7 +22,7 @@ async def run_benchmark(client: httpx.AsyncClient, prompts: list[str], *, model:
 
     hit_start = time.time()
     hit_results = await asyncio.gather(
-        *[single_request(client, prompt, model=model, base_url=base_url, system_prompt=system_prompt) for prompt in prompts[1:]],
+        *[throttled_request(sem, client, prompt, model=model, base_url=base_url, system_prompt=system_prompt) for prompt in prompts[1:]],
         return_exceptions=True,
     )
     hit_end = time.time()
@@ -64,14 +66,16 @@ async def main(model: str, device: str, n_prompts: int | None = None):
     prompts = get_prompts(n_prompts)
     system_prompt = get_system_prompt()
 
+    max_concurrency = get_max_concurrency(device)
+
     async with httpx.AsyncClient(timeout=120.0) as client:
-        results = await run_benchmark(client, prompts, model=model, base_url=base_url, system_prompt=system_prompt)
+        results = await run_benchmark(client, prompts, model=model, base_url=base_url, system_prompt=system_prompt, max_concurrency=max_concurrency)
 
     output = {
         "experiment": "prefix_cache",
         "device": device,
         "model": model,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "results": results,
     }
 
