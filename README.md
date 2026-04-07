@@ -19,6 +19,9 @@ measured impact of each.
 
 50 concurrent requests, Qwen2.5-1.5B-Instruct, streaming via OpenAI-compatible API.
 
+> Note: baseline was run before the concurrency sweep, using full concurrency (50).
+> Results reflect maximum throughput, not optimized latency.
+
 ### CUDA — RTX 4090 (vLLM, BF16)
 
 | Metric | P50 | P90 | P95 | P99 |
@@ -44,24 +47,77 @@ measured impact of each.
   on Apple Silicon.
 - **TTFT**: The M5 has *lower* P50 TTFT (2.9s vs 7.7s), but this is misleading —
   CUDA TTFT includes ~2s round-trip network latency (Mac → RunPod proxy). True
-  on-GPU TTFT is significantly lower and will be measured in a follow-up run from
-  inside the pod. M5's P99 TTFT explodes to 18.7s — requests that arrive late queue
-  behind earlier decodes in the single-threaded MLX server.
+  on-GPU TTFT was not measured in this experiment due to RunPod proxy overhead.
+  M5's P99 TTFT explodes to 18.7s — requests that arrive late queue behind earlier
+  decodes in the single-threaded MLX server.
 - **Throughput**: System-wide, the 4090 pushes 2x the total tokens/sec even though
   the M5 model is already 4-bit quantized (smaller weights, fewer bytes to move).
+
+## Concurrency sweep
+
+Firing all requests at once saturates the server. The concurrency sweep empirically
+finds the sweet spot — the concurrency level where throughput plateaus but TTFT
+hasn't yet exploded.
+
+| Device | Sweet spot | TTFT P50 | Throughput |
+| -------- | ---------- | -------- | ---------- |
+| MPS (1.5B) | 4 | 341ms | 292 TPS |
+| CUDA (1.5B) | 16 | 620ms | 1,835 TPS |
+
+Beyond these points, each additional concurrent request competes for the same memory
+bandwidth during decode — per-user TPS drops faster than total throughput rises.
+
+## Prefix caching
+
+Prefix caching saves the KV cache from a shared system prompt and re-uses it for
+subsequent requests, skipping redundant prefill work. This directly reduces TTFT.
+
+### CUDA — RTX 4090 (vLLM, BF16)
+
+| Metric | Value |
+| -------- | ----- |
+| Cache miss TTFT | 2,690ms |
+| Cache hit TTFT P50 | 1,318ms (51% reduction) |
+| Cache hit TTFT P90 | 8,997ms |
+| Cache hit TPS P50 | 190.2 |
+| Throughput | 1,088 TPS |
+
+vLLM confirmed prefix cache hit rate: 95%. P90+ spikes are attributed to network
+latency variance through the RunPod proxy, not vLLM queuing — server logs confirmed
+`Waiting: 0 reqs` throughout the run.
+
+### MPS — Mac M5 (MLX, 4-bit quantized)
+
+| Metric | Value |
+| -------- | ----- |
+| Cache miss TTFT | 753ms |
+| Cache hit TTFT P50 | 520ms (31% reduction) |
+| Cache hit TTFT P90 | 675ms |
+| Cache hit TPS P50 | 44.8 |
+| Throughput | 168 TPS |
 
 ## Project structure
 
 ```md
 llm-serving-lab/
-├── main.py               # CLI entry point — routes to benchmark scripts
-├── config.py             # Model registry + environment-aware URL resolution
+├── main.py                    # CLI entry point — routes to benchmark scripts
+├── utils/
+│   ├── config.py              # Model registry + environment-aware URL resolution
+│   ├── constants.py           # Shared prompts + generation parameters
+│   ├── single_request.py      # Single streaming request helper
+│   └── throttled_request.py   # Rate-limited concurrent request dispatcher
 ├── benchmarks/
-│   └── baseline.py       # TTFT, TPS, latency percentiles at baseline
-├── results/              # JSON output from benchmark runs
+│   ├── baseline.py            # TTFT, TPS, latency percentiles at baseline
+│   ├── concurrency_sweep.py   # Find optimal concurrency per device
+│   └── prefix_cache.py        # Prefix caching speedup experiment
+├── results/                   # JSON output from benchmark runs
 │   ├── baseline_cuda.json
-│   └── baseline_mps.json
-├── .env                  # RUNPOD_URL, PORT, HF_TOKEN — gitignored, never commit tokens
+│   ├── baseline_mps.json
+│   ├── concurrency_sweep_cuda.json
+│   ├── concurrency_sweep_mps.json
+│   ├── prefix_cache_cuda.json
+│   └── prefix_cache_mps.json
+├── .env                       # RUNPOD_URL, PORT, HF_TOKEN — gitignored
 └── pyproject.toml
 ```
 
@@ -137,10 +193,14 @@ latency is right-skewed — mean is always higher than P50 due to outliers.
 | TPS | Tokens per second, per user | Decode |
 | Throughput | Total tokens/sec across all concurrent requests | System |
 
+## Completed experiments
+
+- **Concurrency sweep** — empirically derived optimal concurrency per device
+- **Prefix caching** — shared system prompt KV cache reuse: 51% TTFT reduction on CUDA
+
 ## Planned experiments
 
 - **Quantization** — FP16 vs INT8 vs INT4: measure TPS gain and perplexity cost
-- **Prefix caching** — shared system prompt KV cache reuse: measure TTFT reduction
 - **Speculative decoding** — draft model validation: measure TPS improvement at varying batch sizes
 
 ## References
