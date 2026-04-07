@@ -1,9 +1,4 @@
-""" Configuration for the project. """
-
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
+"""Constants for the project."""
 
 MODEL_REGISTRY = {
     # Same model, both environments — primary comparison pair
@@ -21,28 +16,6 @@ MODEL_REGISTRY = {
     "qwen-1.5b-cuda": {"full_name": "Qwen/Qwen2.5-1.5B-Instruct", "device": "cuda"},
     "qwen-1.5b-mps":  {"full_name": "mlx-community/Qwen2.5-1.5B-Instruct-4bit", "device": "mps"},
 }
-
-def resolve_model(alias: str) -> dict:
-    if alias in MODEL_REGISTRY:
-        return MODEL_REGISTRY[alias]
-    # fall through — treat as a full HuggingFace model name
-    return {"full_name": alias, "device": None}
-
-
-def get_base_url(device: str) -> str:
-    """Return the inference server URL based on the target device.
-
-    - cuda: uses RUNPOD_URL from .env (vLLM on RunPod)
-    - mps:  uses http://localhost:{PORT} (mlx-lm local server)
-    """
-    if device == "cuda":
-        url = os.environ.get("RUNPOD_URL")
-        if not url:
-            raise RuntimeError("RUNPOD_URL environment variable is not set")
-        return url.rstrip("/")
-    port = os.environ.get("PORT", "8080")
-    return f"http://localhost:{port}"
-
 
 PROMPTS = [
     # General knowledge
@@ -106,11 +79,6 @@ PROMPTS = [
     "Describe how a blockchain achieves consensus without a central authority.",
     "Explain the concept of entropy in both thermodynamics and information theory.",
 ]
-
-def get_prompts(n_prompts: int | None = None) -> list[str]:
-    """Return the prompts based on the number of prompts."""
-    return PROMPTS[:n_prompts] if n_prompts else PROMPTS
-
 
 SYSTEM_PROMPT = (
     "You are Atlas, an advanced AI research assistant developed for a large "
@@ -180,7 +148,3 @@ SYSTEM_PROMPT = (
     "- Units: always include units for physical quantities and be consistent within "
     "a response.\n"
 )
-
-def get_system_prompt() -> str:
-    """Return the system prompt."""
-    return SYSTEM_PROMPT
