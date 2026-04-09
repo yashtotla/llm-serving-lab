@@ -2,19 +2,21 @@
 
 MODEL_REGISTRY = {
     # Same model, both environments — primary comparison pair
-    "llama-1b-mps":   {"full_name": "mlx-community/Llama-3.2-1B-Instruct-4bit", "device": "mps"},
+    "llama-1b-mps":   {"full_name": "mlx-community/Llama-3.2-1B-Instruct-4bit",  "device": "mps"},
     "llama-1b-cuda":  {"full_name": "meta-llama/Llama-3.2-1B-Instruct",          "device": "cuda"},
 
     # Quantization experiment variants (CUDA only)
     "llama-1b-int8":  {"full_name": "meta-llama/Llama-3.2-1B-Instruct",          "device": "cuda"},  # vLLM --quantization awq
-    "llama-1b-int4":  {"full_name": "TheBloke/Llama-3.2-1B-Instruct-GPTQ",       "device": "cuda"},
+    "llama-1b-int4":  {"full_name": "TheBloke/Llama-3.2-1B-Instruct-GPTQ",       "device": "cuda"},  # vLLM --quantization gptq
+    "qwen-1.5b-int8": {"full_name": "Qwen/Qwen2.5-1.5B-Instruct-AWQ",            "device": "cuda"},  # vLLM --quantization awq
+    "qwen-1.5b-int4": {"full_name": "Qwen/Qwen2.5-1.5B-Instruct-GPTQ-Int4",      "device": "cuda"},  # vLLM --quantization gptq
 
     # Tiny model just for local smoke testing
     "qwen-0.5b":      {"full_name": "mlx-community/Qwen2.5-0.5B-Instruct-4bit",  "device": "mps"},
 
     # Same model, both environments — secondary comparison pair
-    "qwen-1.5b-cuda": {"full_name": "Qwen/Qwen2.5-1.5B-Instruct", "device": "cuda"},
-    "qwen-1.5b-mps":  {"full_name": "mlx-community/Qwen2.5-1.5B-Instruct-4bit", "device": "mps"},
+    "qwen-1.5b-cuda": {"full_name": "Qwen/Qwen2.5-1.5B-Instruct",                "device": "cuda"},  # vLLM
+    "qwen-1.5b-mps":  {"full_name": "mlx-community/Qwen2.5-1.5B-Instruct-4bit",  "device": "mps"},   # MLX
 }
 
 PROMPTS = [
