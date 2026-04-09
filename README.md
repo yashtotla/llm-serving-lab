@@ -116,7 +116,10 @@ llm-serving-lab/
 │   ├── concurrency_sweep_cuda.json
 │   ├── concurrency_sweep_mps.json
 │   ├── prefix_cache_cuda.json
-│   └── prefix_cache_mps.json
+│   ├── prefix_cache_mps.json
+│   ├── quantization_bf16_cuda.json
+│   ├── quantization_int8_cuda.json
+│   └── quantization_int4_cuda.json
 ├── .env                       # RUNPOD_URL, PORT, HF_TOKEN — gitignored
 └── pyproject.toml
 ```
@@ -174,13 +177,11 @@ uv run python -m main --script benchmarks.baseline --model qwen-0.5b --n-prompts
 
 | Alias | Model | Device |
 | ------- | ------- | -------- |
-| `llama-1b-mps` | `mlx-community/Llama-3.2-1B-Instruct-4bit` | MPS |
-| `llama-1b-cuda` | `meta-llama/Llama-3.2-1B-Instruct` | CUDA |
-| `llama-1b-int8` | `meta-llama/Llama-3.2-1B-Instruct` | CUDA |
-| `llama-1b-int4` | `TheBloke/Llama-3.2-1B-Instruct-GPTQ` | CUDA |
 | `qwen-0.5b` | `mlx-community/Qwen2.5-0.5B-Instruct-4bit` | MPS |
 | `qwen-1.5b-mps` | `mlx-community/Qwen2.5-1.5B-Instruct-4bit` | MPS |
 | `qwen-1.5b-cuda` | `Qwen/Qwen2.5-1.5B-Instruct` | CUDA |
+| `qwen-1.5b-int8` | `Qwen/Qwen2.5-1.5B-Instruct-AWQ` | CUDA |
+| `qwen-1.5b-int4` | `Qwen/Qwen2.5-1.5B-Instruct-GPTQ-Int4` | CUDA |
 
 ## Metrics
 
@@ -193,14 +194,80 @@ latency is right-skewed — mean is always higher than P50 due to outliers.
 | TPS | Tokens per second, per user | Decode |
 | Throughput | Total tokens/sec across all concurrent requests | System |
 
+## Quantization
+
+Quantization reduces the precision of model weights to move fewer bytes per decode
+step — directly attacking the memory-bandwidth bottleneck. But the method matters as
+much as the precision level.
+
+### CUDA — RTX 4090, Qwen2.5-1.5B-Instruct, 50 concurrent requests
+
+| Precision | Model | TPS P50 | Throughput | Perplexity |
+| --------- | ----- | ------- | ---------- | ---------- |
+| BF16 | Qwen2.5-1.5B-Instruct | 212 | 1,634 TPS | 1.935 |
+| INT8 (AWQ) | Qwen2.5-1.5B-Instruct-AWQ | 82 | 923 TPS | 1.986 |
+| INT4 (GPTQ) | Qwen2.5-1.5B-Instruct-GPTQ-Int4 | 291 | 2,014 TPS | 1.949 |
+
+### Reproducing
+
+Each precision level requires a different vLLM server configuration:
+
+```bash
+# BF16 (baseline)
+python -m vllm.entrypoints.openai.api_server \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --dtype bfloat16 --max-model-len 4096
+
+# INT8 (AWQ)
+python -m vllm.entrypoints.openai.api_server \
+  --model Qwen/Qwen2.5-1.5B-Instruct-AWQ \
+  --quantization awq --max-model-len 4096
+
+# INT4 (GPTQ)
+python -m vllm.entrypoints.openai.api_server \
+  --model Qwen/Qwen2.5-1.5B-Instruct-GPTQ-Int4 \
+  --quantization gptq --max-model-len 4096
+```
+
+Then run the benchmark against each:
+
+```bash
+uv run python -m main --script benchmarks.quantization --model qwen-1.5b-cuda --precision bf16
+uv run python -m main --script benchmarks.quantization --model qwen-1.5b-int8 --precision int8
+uv run python -m main --script benchmarks.quantization --model qwen-1.5b-int4 --precision int4
+```
+
+### Why INT8 is slower than full precision
+
+The naive expectation — fewer bits = faster inference — breaks down here. AWQ
+quantizes both weights *and* activations, which requires dequantization at runtime.
+On a small 1.5B model, that dequantization overhead outweighs the memory bandwidth
+savings from smaller weights.
+
+GPTQ is weight-only quantization — it quantizes weights to INT4 but leaves activations
+in full precision. Less overhead, and INT4 weights are half the size of INT8, so the
+bandwidth savings are larger. Result: INT4 GPTQ is 37% faster than BF16, while INT8
+AWQ is 61% *slower*.
+
+This is a known tradeoff: AWQ's activation quantization overhead is amortized on larger
+models (7B+) where memory savings dominate. On small models, weight-only methods like
+GPTQ win.
+
+### Quality is essentially free
+
+Perplexity is nearly identical across all three precisions (1.935–1.986). At 1.5B
+parameters, there's enough redundancy in the weights that precision loss barely
+registers. The book confirms this — larger models are *less* sensitive to quantization
+because each individual parameter matters less.
+
 ## Completed experiments
 
 - **Concurrency sweep** — empirically derived optimal concurrency per device
 - **Prefix caching** — shared system prompt KV cache reuse: 51% TTFT reduction on CUDA
+- **Quantization** — BF16 vs INT8 (AWQ) vs INT4 (GPTQ): INT4 is 37% faster, INT8 is slower due to dequant overhead
 
 ## Planned experiments
 
-- **Quantization** — FP16 vs INT8 vs INT4: measure TPS gain and perplexity cost
 - **Speculative decoding** — draft model validation: measure TPS improvement at varying batch sizes
 
 ## References
