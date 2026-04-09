@@ -58,7 +58,9 @@ if __name__ == "__main__":
 
     module = importlib.import_module(args.script)
 
-    kwargs: dict = {"model": model_name, "device": device, "n_prompts": args.n_prompts}
+    kwargs: dict = {"model": model_name, "device": device}
+    if args.n_prompts is not None:
+        kwargs["n_prompts"] = args.n_prompts
     if args.precision and args.script == "benchmarks.quantization":
         kwargs["precision"] = args.precision
 
