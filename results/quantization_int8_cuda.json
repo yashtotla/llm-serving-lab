@@ -1,0 +1,28 @@
+{
+  "experiment": "quantization_int8",
+  "device": "cuda",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct-AWQ",
+  "timestamp": "2026-04-09T20:04:56.030152+00:00",
+  "config": {
+    "precision": "int8",
+    "n_prompts": 50
+  },
+  "results": {
+    "n_prompts": 50,
+    "failed_results": 0,
+    "perplexity": 1.9863257357132065,
+    "ttft_ms": {
+      "p50": 572.8280544281006,
+      "p90": 1211.0658645629883,
+      "p95": 1218.7233805656433,
+      "p99": 1369.3864989280698
+    },
+    "tps": {
+      "p50": 81.76572271066613,
+      "p90": 84.5209358167563,
+      "p95": 84.71315791749976,
+      "p99": 85.3110370316351
+    },
+    "throughput_total_tps": 923.4433515753875
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "experiment": "quantization_int4",
+  "device": "cuda",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct-GPTQ-Int4",
+  "timestamp": "2026-04-09T20:06:30.703159+00:00",
+  "config": {
+    "precision": "int4",
+    "n_prompts": 50
+  },
+  "results": {
+    "n_prompts": 50,
+    "failed_results": 0,
+    "perplexity": 1.9494353485542728,
+    "ttft_ms": {
+      "p50": 573.7495422363281,
+      "p90": 1328.566575050354,
+      "p95": 1329.3774247169495,
+      "p99": 1331.5554738044739
+    },
+    "tps": {
+      "p50": 291.1410702964059,
+      "p90": 310.5734326166779,
+      "p95": 312.8508389565045,
+      "p99": 355.0382946150737
+    },
+    "throughput_total_tps": 2014.246102574285
+  }
+}
