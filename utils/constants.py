@@ -17,6 +17,9 @@ MODEL_REGISTRY = {
     # Same model, both environments — secondary comparison pair
     "qwen-1.5b-cuda": {"full_name": "Qwen/Qwen2.5-1.5B-Instruct",                "device": "cuda"},  # vLLM
     "qwen-1.5b-mps":  {"full_name": "mlx-community/Qwen2.5-1.5B-Instruct-4bit",  "device": "mps"},   # MLX
+
+    "smollm-1.7b-cuda": {"full_name": "HuggingFaceTB/SmolLM2-1.7B-Instruct", "device": "cuda"},
+    "smollm-135m-cuda": {"full_name": "HuggingFaceTB/SmolLM2-135M-Instruct", "device": "cuda"},
 }
 
 PROMPTS = [
