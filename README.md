@@ -109,7 +109,8 @@ llm-serving-lab/
 ├── benchmarks/
 │   ├── baseline.py            # TTFT, TPS, latency percentiles at baseline
 │   ├── concurrency_sweep.py   # Find optimal concurrency per device
-│   └── prefix_cache.py        # Prefix caching speedup experiment
+│   ├── prefix_cache.py        # Prefix caching speedup experiment
+│   └── quantization.py        # FP16 vs INT8 vs INT4 speed + quality
 ├── results/                   # JSON output from benchmark runs
 │   ├── baseline_cuda.json
 │   ├── baseline_mps.json
@@ -119,7 +120,10 @@ llm-serving-lab/
 │   ├── prefix_cache_mps.json
 │   ├── quantization_bf16_cuda.json
 │   ├── quantization_int8_cuda.json
-│   └── quantization_int4_cuda.json
+│   ├── quantization_int4_cuda.json
+│   ├── baseline_cuda_smollm2.json
+│   ├── speculative_decoding_n5_cuda.json
+│   └── speculative_decoding_n2_cuda.json
 ├── .env                       # RUNPOD_URL, PORT, HF_TOKEN — gitignored
 └── pyproject.toml
 ```
@@ -182,6 +186,8 @@ uv run python -m main --script benchmarks.baseline --model qwen-0.5b --n-prompts
 | `qwen-1.5b-cuda` | `Qwen/Qwen2.5-1.5B-Instruct` | CUDA |
 | `qwen-1.5b-int8` | `Qwen/Qwen2.5-1.5B-Instruct-AWQ` | CUDA |
 | `qwen-1.5b-int4` | `Qwen/Qwen2.5-1.5B-Instruct-GPTQ-Int4` | CUDA |
+| `smollm-1.7b-cuda` | `HuggingFaceTB/SmolLM2-1.7B-Instruct` | CUDA |
+| `smollm-135m-cuda` | `HuggingFaceTB/SmolLM2-135M-Instruct` | CUDA |
 
 ## Metrics
 
@@ -260,15 +266,77 @@ parameters, there's enough redundancy in the weights that precision loss barely
 registers. The book confirms this — larger models are *less* sensitive to quantization
 because each individual parameter matters less.
 
+## Speculative decoding
+
+Speculative decoding uses a small draft model to generate candidate tokens, which the
+target model then verifies in a single forward pass. Verification runs like prefill
+(parallel over all draft tokens), while generation is autoregressive (one token at a
+time) — that's why verification is cheaper. This can produce multiple tokens per target
+model forward pass — improving
+TPS without changing output quality.
+
+The speedup depends on three factors working together: draft token cost, draft sequence
+length, and token acceptance rate. If any one of these is unfavorable, speculation hurts
+more than it helps.
+
+### Experiment 1: Qwen2.5 (3x size ratio)
+
+**Target**: Qwen2.5-1.5B-Instruct, **Draft**: Qwen2.5-0.5B-Instruct, n=5
+
+Result: **5x slower than baseline**. Acceptance rate ~30%. The draft model at 1/3 the
+size of the target consumes significant compute while contributing little — the book's
+recommended 10x minimum size ratio exists for exactly this reason.
+
+### Experiment 2: SmolLM2 (12x size ratio, n=5)
+
+**Target**: SmolLM2-1.7B-Instruct, **Draft**: SmolLM2-135M-Instruct, n=5
+
+| Concurrency | Baseline TPS | Speculative TPS | Delta |
+| ----------- | ------------ | --------------- | ----- |
+| 1 | 136 | 30 | -78% |
+| 16 | ~136 | 29 | -79% |
+
+Per-position acceptance rates dropped sharply beyond position 2:
+
+```text
+Position 1: 51%  Position 2: 31%  Position 3: 17%  Position 4: 9%  Position 5: 6%
+```
+
+TPS was flat across all concurrency levels — unlike the baseline where TPS declines
+gradually with concurrency. This indicates the bottleneck flipped from memory-bound to
+compute-bound: the GPU was saturated verifying rejected tokens rather than sitting idle
+waiting for memory.
+
+### Experiment 3: SmolLM2 (12x size ratio, n=2)
+
+Reducing speculative tokens to 2 cut wasted compute and doubled TPS to ~61 — a perfectly
+linear relationship. But still less than half of baseline.
+
+| n_speculative_tokens | TPS P50 | vs baseline |
+| -------------------- | ------- | ----------- |
+| 5 | 30 | -78% |
+| 2 | 61 | -55% |
+| 0 (baseline) | 136 | — |
+
+### Why it didn't work
+
+Draft-target speculative decoding requires the draft model's probability distribution to
+closely mirror the target's. Off-the-shelf small models — even from the same family —
+diverge too quickly in their predictions. The book recommends EAGLE (which uses the target
+model's hidden states as the draft) for production use precisely because it achieves much
+higher acceptance rates. N-gram speculation is recommended for code completion where output
+closely mirrors input.
+
+The fundamental insight: speculation only helps when idle compute exists and acceptance rate
+is high. On a 4090 serving a 1.7B model, compute is not truly idle even at low concurrency,
+and the 135M draft model's predictions aren't reliable enough beyond the first 1-2 positions.
+
 ## Completed experiments
 
 - **Concurrency sweep** — empirically derived optimal concurrency per device
 - **Prefix caching** — shared system prompt KV cache reuse: 51% TTFT reduction on CUDA
 - **Quantization** — BF16 vs INT8 (AWQ) vs INT4 (GPTQ): INT4 is 37% faster, INT8 is slower due to dequant overhead
-
-## Planned experiments
-
-- **Speculative decoding** — draft model validation: measure TPS improvement at varying batch sizes
+- **Speculative decoding** — draft model speculation: negative TPS impact due to low acceptance rates on small models
 
 ## References
 
