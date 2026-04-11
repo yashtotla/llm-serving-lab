@@ -1,0 +1,23 @@
+{
+  "experiment": "baseline",
+  "device": "cuda",
+  "model": "HuggingFaceTB/SmolLM2-1.7B-Instruct",
+  "timestamp": "2026-04-11T00:22:19.912778",
+  "results": {
+    "n_requests": 50,
+    "failed_results": 0,
+    "ttft_ms_percentiles": {
+      "p50": 1723.1131792068481,
+      "p90": 2020.1573610305786,
+      "p95": 2021.4882135391235,
+      "p99": 2024.2304229736328
+    },
+    "tps_percentiles": {
+      "p50": 136.2606413258835,
+      "p90": 144.88811194678397,
+      "p95": 146.7481717331384,
+      "p99": 172.46525290624098
+    },
+    "throughput_total_tps": 1488.544639232373
+  }
+}
